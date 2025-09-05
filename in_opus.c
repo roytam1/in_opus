@@ -10,7 +10,7 @@
 #include <math.h>
 #include <windows.h>
 #include <string.h>
-#include <opus/opusfile.h>
+#include <opusfile.h>
 #include <limits.h>
 #include "resource.h"
 #include "infobox.h"

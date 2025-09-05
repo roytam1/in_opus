@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS=-I. -I./opus \
+CFLAGS=-I. -Iopusfile -Ilibogg/include -Ilibopus/include \
     -Os \
     -Wall -Wextra \
     -Wno-unused-parameter \
@@ -9,43 +9,38 @@ CFLAGS=-I. -I./opus \
     -mno-stack-arg-probe \
     -momit-leaf-frame-pointer \
     -march=i486 -mtune=i686 \
-    -flto \
     -fno-ident \
     -mpreferred-stack-boundary=2 \
-    -foptimize-strlen \
  	-fno-exceptions \
-	-fno-dwarf2-cfi-asm \
 	-fno-asynchronous-unwind-tables \
-    -Wstack-usage=4096 \
     -fgcse-sm \
     -fgcse-las \
 
+#	-fno-dwarf2-cfi-asm \
+#    -flto \
+#    -Wstack-usage=4096 \
+#    -foptimize-strlen \
 #    -fomit-frame-pointer \
 
 # -freorder-blocks -fweb -frename-registers -funswitch-loops\
 # -fwhole-program -fstrict-aliasing -fschedule-insns
 # -D__SSE1 sse_func.o
 
-LDFLAGS= -nostdlib -lgcc -lkernel32 -lmsvcrt -luser32 -lgdi32 -lwsock32 -s
+LDFLAGS= -nostdlib -lgcc -lkernel32 -lmsvcrt -luser32 -lgdi32 -lwsock32 -lm -s
 LDFLAGS+= -Wl,-s,-dynamicbase \
-    -Wl,-nxcompat \
-    -Wl,--no-seh \
     -Wl,--relax \
     -Wl,--disable-runtime-pseudo-reloc \
     -Wl,--enable-auto-import \
     -Wl,--disable-stdcall-fixup
 
+#    -Wl,--no-seh \
+#    -Wl,-nxcompat \
+
 in_opus.dll: in_opus.o resample.o infobox.o http.o wspiapi.o resource.o
 	$(CC) -o in_opus.dll in_opus.o resample.o infobox.o http.o wspiapi.o resource.o\
-	 oflto/*.o opusfile/*.c -e_DllMain@12 -mdll $(LDFLAGS) $(CFLAGS)
+	 libogg/src/*.c opusfile/*.c libopus.a -e_DllMain@12 -mdll $(LDFLAGS) $(CFLAGS)
 
-	cp in_opus.dll "D:\Program Files\MediaPlayers\Winamp\Plugins"
-	cp in_opus.dll "D:\Shared docs"
-	cp in_opus.dll "D:\Program Files\MediaPlayers\winamp566\Plugins"
-	cp in_opus.dll "D:\Program Files\MediaPlayers\winamp58\Plugins"
-	cp in_opus.dll "D:\Program Files\MediaPlayers\winamp531\Plugins"
-	cp in_opus.dll "D:\Program Files\MediaPlayers\MediaMonkey3\Plugins"
-	cp in_opus.dll "D:\Program Files\MediaPlayers\MediaMonkey4\Plugins"
+#oflto/*.o 
 
 in_opus.o : in_opus.c infobox.h resample.h resource.h
 	$(CC) -c in_opus.c $(CFLAGS)

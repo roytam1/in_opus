@@ -21,8 +21,11 @@
 
 #include <windows.h>
 #include <stddef.h>
+#ifndef intptr_t_defined
 #if (_MSC_VER <= 1200)
 typedef int intptr_t;
+#endif
+#define intptr_t_defined
 #endif
 /*
 ** This is the modern replacement for the classic 'frontend.h'. Most of these 

@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <windows.h>
-#include <opus/opusfile.h>
+#include <opusfile.h>
 #include "resource.h"
 #include "infobox.h"
 
