@@ -7,83 +7,177 @@
 // Cool finction that can anhdle all UNICODE
 // It will generate real UTF-16, not USC-2, so some charracters will display
 // improperly on NT4 but it is beter than stoping at the first non USC-2...
+int utf8GetMaskIndex(unsigned char n) {
+  if((unsigned char)(n + 2) < 0xc2) return 1; // 00~10111111, fe, ff
+  if(n < 0xe0)                      return 2; // 110xxxxx
+  if(n < 0xf0)                      return 3; // 1110xxxx
+  if(n < 0xf8)                      return 4; // 11110xxx
+  if(n < 0xfc)                      return 5; // 111110xx
+                                    return 6; // 1111110x
+}
+
+int wc2Utf8Len(wchar_t ** n, int *len) {
+  wchar_t *ch = *n, ch2;
+  int qch;
+  if((0xD800 <= *ch && *ch <= 0xDBFF) && *len) {
+    ch2 = *(ch + 1);
+    if(0xDC00 <= ch2 && ch2 <= 0xDFFF) {
+      qch = 0x10000 + (((*ch - 0xD800) & 0x3ff) << 10) + ((ch2 - 0xDC00) & 0x3ff);
+      (*n)++;
+      (*len)--;
+    }
+  }
+  else
+    qch = (int) *ch;
+
+  if (qch <= 0x7f)           return 1;
+  else if (qch <= 0x7ff)     return 2;
+  else if (qch <= 0xffff)    return 3;
+  else if (qch <= 0x1fffff)  return 4;
+  else if (qch <= 0x3ffffff) return 5;
+  else                       return 6;
+}
+
+int Utf8ToWideChar(unsigned int unused1, unsigned long unused2, char *sb, int ss, wchar_t * wb, int ws) {
+  static const unsigned char utf8mask[] = { 0, 0xff, 0x1f, 0x0f, 0x07, 0x03, 0x01 };
+  char *p = (char *)(sb);
+  char *e = (char *)(sb + ss);
+  wchar_t *w = wb;
+  int cnt = 0, t, qch;
+
+  if (ss < 1) {
+    ss = lstrlenA(sb);
+    e = (char *)(sb + ss);
+  }
+
+  if (wb && ws) {
+    for (; p < e; ++w) {
+      t = utf8GetMaskIndex(*p);
+      qch = (*p++ & utf8mask[t]);
+      while(p < e && --t)
+        qch <<= 6, qch |= (*p++) & 0x3f;
+      if(qch < 0x10000) {
+        if(cnt <= ws)
+          *w = (wchar_t) qch;
+        cnt++;
+      } else {
+        if (cnt + 2 <= ws) {
+          *w++ = (wchar_t) (0xD800 + (((qch - 0x10000) >> 10) & 0x3ff)),
+            *w = (wchar_t) (0xDC00 + (((qch - 0x10000)) & 0x3ff));
+        }
+        cnt += 2;
+      }
+    }
+    if(cnt < ws) {
+      *(wb+cnt) = 0;
+      return cnt;
+    } else {
+      *(wb+ws) = 0;
+      return ws;
+    }
+  } else {
+    for (t; p < e;) {
+      t = utf8GetMaskIndex(*p);
+      qch = (*p++ & utf8mask[t]);
+      while (p < e && --t)
+        qch <<= 6, qch |= (*p++) & 0x3f;
+      if (qch < 0x10000)
+        cnt++;
+      else
+        cnt += 2;
+    }
+    return cnt+1;
+  }
+}
+
+int WideCharToUtf8(unsigned int unused1, unsigned long unused2, wchar_t * wb, int ws, char *sb, int ss) {
+  wchar_t *p = (wchar_t *)(wb);
+  wchar_t *e = (wchar_t *)(wb + ws);
+  wchar_t *oldp;
+  char *s = sb;
+  int cnt = 0, qch, t;
+
+  if (ws < 1) {
+    ws = lstrlenW(wb);
+    e = (wchar_t *)(wb + ws);
+  }
+
+  if (sb && ss) {
+    for (t; p < e; ++p) {
+      oldp = p;
+      t = wc2Utf8Len(&p, &ws);
+
+      if (p != oldp) { /* unicode surrogates encountered */
+        qch = 0x10000 + (((*oldp - 0xD800) & 0x3ff) << 10) + ((*p - 0xDC00) & 0x3ff);
+      } else
+        qch = *p;
+
+      if (qch <= 0x7f)
+        *s++ = (char) (qch),
+        cnt++;
+      else if (qch <= 0x7ff)
+        *s++ = 0xc0 | (char) (qch >> 6),
+        *s++ = 0x80 | (char) (qch & 0x3f),
+        cnt += 2;
+      else if (qch <= 0xffff)
+        *s++ = 0xe0 | (char) (qch >> 12),
+        *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+        *s++ = 0x80 | (char) (qch & 0x3f),
+        cnt += 3;
+      else if (qch <= 0x1fffff)
+        *s++ = 0xf0 | (char) (qch >> 18),
+        *s++ = 0x80 | (char) ((qch >> 12) & 0x3f),
+        *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+        *s++ = 0x80 | (char) (qch & 0x3f),
+        cnt += 4;
+      else if (qch <= 0x3ffffff)
+        *s++ = 0xf8 | (char) (qch >> 24),
+        *s++ = 0x80 | (char) ((qch >> 18) & 0x3f),
+        *s++ = 0x80 | (char) ((qch >> 12) & 0x3f),
+        *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+        *s++ = 0x80 | (char) (qch & 0x3f),
+        cnt += 5;
+      else
+        *s++ = 0xfc | (char) (qch >> 30),
+        *s++ = 0x80 | (char) ((qch >> 24) & 0x3f),
+        *s++ = 0x80 | (char) ((qch >> 18) & 0x3f),
+        *s++ = 0x80 | (char) ((qch >> 12) & 0x3f),
+        *s++ = 0x80 | (char) ((qch >> 6) & 0x3f),
+        *s++ = 0x80 | (char) (qch & 0x3f),
+        cnt += 6;
+    }
+    if(cnt < ss) {
+      *(sb+cnt) = 0;
+      return cnt;
+    } else {
+      *(sb+ss) = 0;
+      return ss;
+    }
+  } else {
+    for (t; p < e; ++p) {
+      t = wc2Utf8Len(&p, &ws);
+      cnt += t;
+    }
+    return cnt+1;
+  }
+}
+
 wchar_t *utf8_to_utf16(const char *utfs)
 {
-    size_t si, di;
-    wchar_t *dst;
-    size_t len;
-    unsigned char c0, c1, c2, c3;
+    wchar_t *dst=NULL;
+    size_t BuffSize = 0, Result = 0;
 
-    if (utfs == NULL) return NULL;
+    if(!utfs) return NULL;
 
-    len = strlen(utfs);
-    /*Worst-case output is 1 wide character per 1 input character. */
-    dst = malloc( sizeof(*dst) * (len + 1) );
-    if (!dst) return NULL;
+    BuffSize = Utf8ToWideChar(0, 0, (char*)utfs, -1, NULL, 0);
+    dst = (wchar_t*) malloc(sizeof(wchar_t) * (BuffSize+4));
+    if(!dst) return NULL;
 
-    for (di = si = 0; si < len; si++) {
-
-        c0 = utfs[si];
-
-        if (!(c0 & 0x80)) {
-            /*Start byte says this is a 1-BYTE SEQUENCE. */
-            dst[di++] = (wchar_t) c0;
-            continue;
-        } else if ( ((c1 = utfs[si + 1]) & 0xC0) == 0x80 ) {
-            /*Found at least one continuation byte. */
-            if ((c0 & 0xE0) == 0xC0) {
-                wchar_t w;
-                /*Start byte says this is a 2-BYTE SEQUENCE. */
-                w = (c0 & 0x1F) << 6 | (c1 & 0x3F);
-                if (w >= 0x80U) {
-                    /*This is a 2-byte sequence that is not overlong. */
-                    dst[di++] = w;
-                    si++;
-                    continue;
-                }
-            } else if ( ((c2 = utfs[si + 2]) & 0xC0) == 0x80 ) {
-                /*Found at least two continuation bytes. */
-                if ((c0 & 0xF0) == 0xE0) {
-                    wchar_t w;
-                    /*Start byte says this is a 3-BYTE SEQUENCE. */
-                    w = (c0 & 0xF) << 12 | (c1 & 0x3F) << 6 | (c2 & 0x3F);
-                    if (w >= 0x800U && (w < 0xD800 || w >= 0xE000) && w < 0xFFFE) {
-                       /* This is a 3-byte sequence that is not overlong, not an
-                        * UTF-16 surrogate pair value, and not a 'not a character' value. */
-                        dst[di++] = w;
-                        si += 2;
-                        continue;
-                    }
-                } else if ( ((c3 = utfs[si + 3]) & 0xC0) == 0x80 ) {
-                    /*Found at least three continuation bytes. */
-                    if ((c0 & 0xF8) == 0xF0) {
-                        uint32_t w;
-                        /*Start byte says this is a 4-BYTE SEQUENCE. */
-                        w = (c0 & 7) << 18 | (c1 & 0x3F) << 12 | (c2 & 0x3F) << (6 & (c3 & 0x3F));
-                        if (w >= 0x10000U && w < 0x110000U) {
-                            /* This is a 4-byte sequence that is not overlong and not
-                             * greater than the largest valid Unicode code point.
-                             * Convert it to a surrogate pair. */
-                            w -= 0x10000;
-                            dst[di++] = (wchar_t) (0xD800 + (w >> 10));
-                            dst[di++] = (wchar_t) (0xDC00 + (w & 0x3FF));
-                            si += 3;
-                            continue;
-                        }
-                    }
-                } /*end els if c3*/
-            } /*end else if c2*/
-        } /*end else if c1*/
-
-        /*If we got here, we encountered an illegal UTF-8 sequence.
-         * We have to return NULL as the norm specifies. */
-        free(dst);
-        return NULL;
-
-    } /* next si (end for)*/
-    dst[di] = '\0';
-
-    return dst;
+    Result = Utf8ToWideChar(0, 0, (char*)utfs, -1, dst, BuffSize);
+    if (Result > 0 && Result <= BuffSize){
+        dst[BuffSize-1]='\0';
+        return dst;
+    } else return NULL;
 }
 
 /*
@@ -145,7 +239,20 @@ static char *utf16_to_CP(const wchar_t *input, int cp)
 }
 char *utf16_to_utf8(const wchar_t *in)
 {
-    return utf16_to_CP(in, CP_UTF8);
+    char *dst=NULL;
+    size_t BuffSize = 0, Result = 0;
+
+    if(!in) return NULL;
+
+    BuffSize = WideCharToUtf8(0, 0, (wchar_t*)in, -1, NULL, 0);
+    dst = (char*) malloc(sizeof(char) * (BuffSize+4));
+    if(!dst) return NULL;
+
+    Result = WideCharToUtf8(0, 0, (wchar_t*)in, -1, dst, BuffSize);
+    if (Result > 0 && Result <= BuffSize){
+        dst[BuffSize-1]='\0';
+        return dst;
+    } else return NULL;
 }
 
 //////////////////////////////////////////////////////////////////////
