@@ -5,8 +5,8 @@
  * GOVERNED BY A BSD-STYLE SOURCE LICENSE INCLUDED WITH THIS SOURCE *
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
- * THE libopusfile SOURCE CODE IS (C) COPYRIGHT 1994-2012           *
- * by the Xiph.Org Foundation and contributors http://www.xiph.org/ *
+ * THE libopusfile SOURCE CODE IS (C) COPYRIGHT 1994-2018           *
+ * by the Xiph.Org Foundation and contributors https://xiph.org/    *
  *                                                                  *
  ********************************************************************
 
@@ -26,40 +26,37 @@
 #include <string.h>
 #if defined(_WIN32)
 # include <io.h>
-#include <windows.h>
+# define WIN32_LEAN_AND_MEAN
+# define WIN32_EXTRA_LEAN
+# include <windows.h>
+# define fdopen _fdopen
 #endif
 
 wchar_t *utf8_to_utf16(const char *utfs);
 static FILE *(WINAPI *my_wfreopen)(const wchar_t *path, const wchar_t *mode, FILE *stream );
 static FILE *(WINAPI *my_wfopen)(const wchar_t *filename, const wchar_t *mode );
-
-
 typedef struct OpusMemStream OpusMemStream;
 
 #define OP_MEM_SIZE_MAX (~(size_t)0>>1)
 #define OP_MEM_DIFF_MAX ((ptrdiff_t)OP_MEM_SIZE_MAX)
 
-/* The context information needed to read from a block of memory
- * as if it were a file.
- */
+/*The context information needed to read from a block of memory as if it were a
+   file.*/
 struct OpusMemStream{
   /*The block of memory to read from.*/
   const unsigned char *data;
-  /* The total size of the block.
-   * This must be at most OP_MEM_SIZE_MAX to prevent
-   * signed overflow while seeking.
-   */
+  /*The total size of the block.
+    This must be at most OP_MEM_SIZE_MAX to prevent signed overflow while
+     seeking.*/
   ptrdiff_t            size;
-  /* The current file position.
-   * This is allowed to be set arbitrarily greater than size (i.e., past the end
-   * of the block, though we will not read data past the end of the block), but
-   * is not allowed to be negative (i.e., before the beginning of the block).
-   */
+  /*The current file position.
+    This is allowed to be set arbitrarily greater than size (i.e., past the end
+     of the block, though we will not read data past the end of the block), but
+     is not allowed to be negative (i.e., before the beginning of the block).*/
   ptrdiff_t            pos;
 };
 
-static int op_fread(void *_stream,unsigned char *_ptr,int _buf_size)
-{
+static int op_fread(void *_stream,unsigned char *_ptr,int _buf_size){
   FILE   *stream;
   size_t  ret;
   /*Check for empty read.*/
@@ -71,30 +68,27 @@ static int op_fread(void *_stream,unsigned char *_ptr,int _buf_size)
   return ret>0||feof(stream)?(int)ret:OP_EREAD;
 }
 
-static int op_fseek(void *_stream,opus_int64 _offset,int _whence)
-{
+static int op_fseek(void *_stream,opus_int64 _offset,int _whence){
 #if defined(_WIN32)
-  /* _fseeki64() is not exposed until MSCVCRT80.
-   * This is the default starting with MSVC 2005 (_MSC_VER>=1400), but we want
-   * to allow linking against older MSVCRT versions for compatibility back to
-   * XP without installing extra runtime libraries.
-   * i686-pc-mingw32 does not have fseeko() and requires
-   * __MSVCRT_VERSION__>=0x800 for _fseeki64(), which screws up linking with
-   * other libraries (that don't use MSVCRT80 from MSVC 2005 by default).
-   * i686-w64-mingw32 does have fseeko() and respects _FILE_OFFSET_BITS, but I
-   * don't know how to detect that at compile time.
-   * We could just use fseeko64() (which is available in both), but its
-   * implemented using fgetpos()/fsetpos() just like this code, except without
-   * the overflow checking, so we prefer our version.
-   */
+  /*_fseeki64() is not exposed until MSVCRT80.
+    This is the default starting with MSVC 2005 (_MSC_VER>=1400), but we want
+     to allow linking against older MSVCRT versions for compatibility back to
+     XP without installing extra runtime libraries.
+    i686-pc-mingw32 does not have fseeko() and requires
+     __MSVCRT_VERSION__>=0x800 for _fseeki64(), which screws up linking with
+     other libraries (that don't use MSVCRT80 from MSVC 2005 by default).
+    i686-w64-mingw32 does have fseeko() and respects _FILE_OFFSET_BITS, but I
+     don't know how to detect that at compile time.
+    We could just use fseeko64() (which is available in both), but it's
+     implemented using fgetpos()/fsetpos() just like this code, except without
+     the overflow checking, so we prefer our version.*/
   opus_int64 pos;
-  /* We don't use fpos_t directly because it might be a struct if __STDC__ is
-   * non-zero or _INTEGRAL_MAX_BITS < 64.
-   * I'm not certain when the latter is true, but someone could in theory set
-   * the former.
-   * Either way, it should be binary compatible with a normal 64-bit int (this
-   * assumption is not portable, but I believe it is true for MSVCRT).
-   */
+  /*We don't use fpos_t directly because it might be a struct if __STDC__ is
+     non-zero or _INTEGRAL_MAX_BITS < 64.
+    I'm not certain when the latter is true, but someone could in theory set
+     the former.
+    Either way, it should be binary compatible with a normal 64-bit int (this
+     assumption is not portable, but I believe it is true for MSVCRT).*/
   OP_ASSERT(sizeof(pos)==sizeof(fpos_t));
   /*Translate the seek to an absolute one.*/
   if(_whence==SEEK_CUR){
@@ -110,28 +104,24 @@ static int op_fseek(void *_stream,opus_int64 _offset,int _whence)
   pos+=_offset;
   return fsetpos((FILE *)_stream,(fpos_t *)&pos);
 #else
-  /* This function actually conforms to the SUSv2 and POSIX.1-2001, so we prefer
-   * it except on Windows.
-   */
-  return fseek((FILE *)_stream,(off_t)_offset,_whence);
+  /*This function actually conforms to the SUSv2 and POSIX.1-2001, so we prefer
+     it except on Windows.*/
+  return fseeko((FILE *)_stream,(off_t)_offset,_whence);
 #endif
 }
 
-static opus_int64 op_ftell(void *_stream)
-{
+static opus_int64 op_ftell(void *_stream){
 #if defined(_WIN32)
-  /* _ftelli64() is not exposed until MSCVCRT80, and ftello()/ftello64() have
-   * the same problems as fseeko()/fseeko64() in MingW.
-   * See above for a more detailed explanation.
-   */
+  /*_ftelli64() is not exposed until MSVCRT80, and ftello()/ftello64() have
+     the same problems as fseeko()/fseeko64() in MingW.
+    See above for a more detailed explanation.*/
   opus_int64 pos;
   OP_ASSERT(sizeof(pos)==sizeof(fpos_t));
   return fgetpos((FILE *)_stream,(fpos_t *)&pos)?-1:pos;
 #else
-  /* This function actually conforms to the SUSv2 and POSIX.1-2001, so we prefer
-   * it except on Windows.
-   */
-  return ftell((FILE *)_stream);
+  /*This function actually conforms to the SUSv2 and POSIX.1-2001, so we prefer
+     it except on Windows.*/
+  return ftello((FILE *)_stream);
 #endif
 }
 
@@ -142,9 +132,59 @@ static const OpusFileCallbacks OP_FILE_CALLBACKS={
   (op_close_func)fclose
 };
 
-void *op_fopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode)
-{
-  FILE *fp=NULL;
+#if defined(_WIN32)
+/*fsetpos() internally dispatches to the win32 API call SetFilePointer().
+  According to SetFilePointer()'s documentation [0], the behavior is
+   undefined if you do not call it on "a file stored on a seeking device".
+  However, none of the MSVCRT seeking functions verify what kind of file is
+   being used before calling it (which I believe is a bug, since they are
+   supposed to fail and return an error, but it is a bug that has been there
+   for multiple decades now).
+  In practice, SetFilePointer() appears to succeed for things like stdin,
+   even when you are not just piping in a regular file, which prevents the use
+   of this API to determine whether it is possible to seek in a file at all.
+  Therefore, we take the approach recommended by the SetFilePointer()
+   documentation and confirm the type of file using GetFileType() first.
+  We do this once, when the file is opened, and return the corresponding
+   callback in order to avoid an extra win32 API call on every seek in the
+   common case.
+  Hopefully the return value of GetFileType() cannot actually change for the
+   lifetime of a file handle.
+  [0] https://docs.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-setfilepointer
+*/
+static int op_fseek_fail(void *_stream,opus_int64 _offset,int _whence){
+  (void)_stream;
+  (void)_offset;
+  (void)_whence;
+  return -1;
+}
+
+static const OpusFileCallbacks OP_UNSEEKABLE_FILE_CALLBACKS={
+  op_fread,
+  op_fseek_fail,
+  op_ftell,
+  (op_close_func)fclose
+};
+
+
+static const OpusFileCallbacks *op_get_file_callbacks(FILE *_fp){
+  intptr_t h_file;
+  h_file=_get_osfhandle(_fileno(_fp));
+  if(h_file!=-1
+   &&(GetFileType((HANDLE)h_file)&~FILE_TYPE_REMOTE)==FILE_TYPE_DISK){
+    return &OP_FILE_CALLBACKS;
+  }
+  return &OP_UNSEEKABLE_FILE_CALLBACKS;
+}
+#else
+static const OpusFileCallbacks *op_get_file_callbacks(FILE *_fp){
+  (void)_fp;
+  return &OP_FILE_CALLBACKS;
+}
+#endif
+
+void *op_fopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode){
+  FILE *fp;
   if(!_path || !_mode || *_path == '\0' || *_mode == '\0') return NULL;
 
   fp=fopen(_path,_mode); // 1st try to open ANSI
@@ -165,24 +205,20 @@ void *op_fopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode)
     if(wmode) _ogg_free(wmode);
     if(wpath) _ogg_free(wpath);
   }
-
-  if(fp != NULL)*_cb = OP_FILE_CALLBACKS;
+  if(fp!=NULL)*_cb=*op_get_file_callbacks(fp);
   return fp;
 }
 
-void *op_fdopen(OpusFileCallbacks *_cb, int _fd,const char *_mode)
-{
+void *op_fdopen(OpusFileCallbacks *_cb,int _fd,const char *_mode){
   FILE *fp;
-  fp=_fdopen(_fd,_mode);
-
-  if(fp!=NULL)*_cb = OP_FILE_CALLBACKS;
+  fp=fdopen(_fd,_mode);
+  if(fp!=NULL)*_cb=*op_get_file_callbacks(fp);
   return fp;
 }
 
-void *op_freopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode, void *_stream)
-{
+void *op_freopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode,
+ void *_stream){
   FILE *fp;
-
   fp=freopen(_path,_mode,(FILE *)_stream);
 
   if(!fp){ // If it does not work then try unicode.
@@ -202,13 +238,11 @@ void *op_freopen(OpusFileCallbacks *_cb,const char *_path,const char *_mode, voi
       if(wmode) _ogg_free(wmode);
       if(wpath) _ogg_free(wpath);
   }
-
-  if(fp!=NULL)*_cb=*&OP_FILE_CALLBACKS;
+  if(fp!=NULL)*_cb=*op_get_file_callbacks(fp);
   return fp;
 }
 
-static int op_mem_read(void *_stream,unsigned char *_ptr,int _buf_size)
-{
+static int op_mem_read(void *_stream,unsigned char *_ptr,int _buf_size){
   OpusMemStream *stream;
   ptrdiff_t      size;
   ptrdiff_t      pos;
@@ -227,8 +261,7 @@ static int op_mem_read(void *_stream,unsigned char *_ptr,int _buf_size)
   return _buf_size;
 }
 
-static int op_mem_seek(void *_stream,opus_int64 _offset,int _whence)
-{
+static int op_mem_seek(void *_stream,opus_int64 _offset,int _whence){
   OpusMemStream *stream;
   ptrdiff_t      pos;
   stream=(OpusMemStream *)_stream;
@@ -250,8 +283,8 @@ static int op_mem_seek(void *_stream,opus_int64 _offset,int _whence)
       size=stream->size;
       OP_ASSERT(size>=0);
       /*Check for overflow:*/
-      if(_offset>size||_offset<size-OP_MEM_DIFF_MAX)return -1;
-      pos=(ptrdiff_t)(size-_offset);
+      if(_offset<-size||_offset>OP_MEM_DIFF_MAX-size)return -1;
+      pos=(ptrdiff_t)(size+_offset);
     }break;
     default:return -1;
   }
@@ -259,15 +292,13 @@ static int op_mem_seek(void *_stream,opus_int64 _offset,int _whence)
   return 0;
 }
 
-static opus_int64 op_mem_tell(void *_stream)
-{
+static opus_int64 op_mem_tell(void *_stream){
   OpusMemStream *stream;
   stream=(OpusMemStream *)_stream;
   return (ogg_int64_t)stream->pos;
 }
 
-static int op_mem_close(void *_stream)
-{
+static int op_mem_close(void *_stream){
   _ogg_free(_stream);
   return 0;
 }
@@ -279,8 +310,8 @@ static const OpusFileCallbacks OP_MEM_CALLBACKS={
   op_mem_close
 };
 
-void *op_mem_stream_create(OpusFileCallbacks *_cb, const unsigned char *_data,size_t _size)
-{
+void *op_mem_stream_create(OpusFileCallbacks *_cb,
+ const unsigned char *_data,size_t _size){
   OpusMemStream *stream;
   if(_size>OP_MEM_SIZE_MAX)return NULL;
   stream=(OpusMemStream *)_ogg_malloc(sizeof(*stream));
