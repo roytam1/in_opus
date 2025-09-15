@@ -809,9 +809,9 @@ static void op_sock_set_tcp_nodelay(op_sock _fd,int _nodelay){
 
 #if defined(_WIN32)
 static void op_init_winsock(){
-  static LONG    count;
+  static LONG    count = -1;
   static WSADATA wsadata;
-  if(InterlockedIncrement(&count)==1)WSAStartup(0x0101,&wsadata);
+  if(InterlockedIncrement(&count)==0)WSAStartup(0x0101,&wsadata);
 }
 #endif
 
