@@ -215,14 +215,13 @@ static const char *op_parse_file_url(const char *_src){
 
 #if defined(OP_ENABLE_HTTP)
 # if defined(_WIN32)
-#  include <winsock2.h>
-#  include <ws2tcpip.h>
+#  include <winsock.h>
+#  include "wspiapi.h"
 #ifdef OP_USE_OPENSSL
 #  include <openssl/ssl.h>
 #  include <openssl/asn1.h>
 #endif
 #  include "winerrno.h"
-#  include "wspiapi.h"
 
 typedef SOCKET op_sock;
 
@@ -812,7 +811,7 @@ static void op_sock_set_tcp_nodelay(op_sock _fd,int _nodelay){
 static void op_init_winsock(){
   static LONG    count;
   static WSADATA wsadata;
-  if(InterlockedIncrement(&count)==1)WSAStartup(0x0202,&wsadata);
+  if(InterlockedIncrement(&count)==1)WSAStartup(0x0101,&wsadata);
 }
 #endif
 
