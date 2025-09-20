@@ -188,11 +188,15 @@ wchar_t *utf8_to_utf16(const char *utfs)
 char *unix2dos(const char *unixs)
 {
     char *doss;
-    size_t l, i, j;
+    size_t l, i, j, dstlen=0;
 
     if(!unixs) return NULL;
-    l = strlen(unixs);
-    doss = (char *)malloc(l * 2 * sizeof(char) + 16);
+    //l = strlen(unixs);
+    for (l=0; unixs[l]; l++) {
+        dstlen++;
+        dstlen += unixs[l] == '\n';
+    }
+    doss = (char *)malloc(dstlen * sizeof(char) + 16);
     if(!doss) return NULL;
 
     j = 0;
@@ -268,29 +272,3 @@ char *utf8_to_ansi(const char *utfs)
 
     return NULL;
 }
-
-#if 0
-/////////////////////////////////////////////////////////////////////////////
-// Ststem normal UTF8 -> UTF16 conversion. We donot use it here because it
-// stops translation as soon as a charracters gets out od USC-2 on NT4.
-wchar_t *utf8_to_utf16(const char *input)
-{
-    wchar_t *Buffer;
-    size_t BuffSize = 0, Result = 0;
-
-    if(!input) return NULL;
-
-    BuffSize = MultiByteToWideChar(CP_UTF8, 0, input, -1, NULL, 0);
-    Buffer = (wchar_t*) malloc(sizeof(wchar_t) * (BuffSize+3));
-    if(Buffer){
-        Result = MultiByteToWideChar(CP_UTF8, 0, input, -1, Buffer, BuffSize);
-
-        if ((Result > 0) && (Result <= BuffSize)){
-            Buffer[BuffSize-1]=(wchar_t) 0;
-            return Buffer;
-        }
-     }
-
-    return NULL;
-}
-#endif //////////////////////////////////////////////////////////////////////

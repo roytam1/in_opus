@@ -148,6 +148,7 @@ extern "C" {
   int WINAPI WspiapiGetNameInfo (const struct sockaddr *sa,socklen_t salen,char *host,size_t hostlen,char *serv,size_t servlen,int flags);
   void WINAPI WspiapiFreeAddrInfo (struct addrinfo *ai);
 
+#if 0
 static __inline char*
 gai_strerrorA(int ecode)
 {
@@ -174,6 +175,7 @@ gai_strerrorW(int ecode)
 #define gai_strerror gai_strerrorW
 #else
 #define gai_strerror gai_strerrorA
+#endif
 #endif
 
 #ifdef __cplusplus
