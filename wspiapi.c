@@ -261,9 +261,9 @@ int WINAPI WspiapiLegacyGetNameInfo(const struct sockaddr *ptSocketAddress,
   char *pszNode = NULL;
   char *pc = NULL;
  
-  if ((!ptSocketAddress) || (tSocketLength < sizeof(struct sockaddr))) return EAI_FAIL;
+  if ((!ptSocketAddress) || (tSocketLength < (int)sizeof(struct sockaddr))) return EAI_FAIL;
   if (ptSocketAddress->sa_family != AF_INET) return EAI_FAMILY;
-  if (tSocketLength < sizeof(struct sockaddr_in)) return EAI_FAIL;
+  if (tSocketLength < (int)sizeof(struct sockaddr_in)) return EAI_FAIL;
   if (!(pszNodeName && tNodeLength) && !(pszServiceName && tServiceLength)) {
     return EAI_NONAME;
   }
