@@ -375,6 +375,16 @@ static INT_PTR CALLBACK InfoProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPar
                    return TRUE;
            } break;
 
+        case WM_CTLCOLORSTATIC:
+        case WM_CTLCOLOREDIT:
+        {
+           DWORD dlgStyle = GetWindowLong(hwnd, GWL_STYLE);
+           if(dlgStyle & DS_3DLOOK) {
+               SetBkColor((HDC)wParam, GetSysColor(COLOR_BTNFACE));
+               SelectObject((HDC)wParam, GetSysColorBrush(COLOR_BTNFACE));
+               return (DWORD)GetSysColorBrush(COLOR_BTNFACE);
+           }
+        }
     } // END Big Switch de msg
 
     return 0;
