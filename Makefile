@@ -14,12 +14,9 @@ CFLAGS=-I. -Iopusfile -Ilibogg/include -Ilibopus/include \
 	-fno-exceptions \
 	-fno-asynchronous-unwind-tables \
 	-fmerge-all-constants \
-	-fno-semantic-interposition \
 	-fgcse-sm \
 	-fgcse-las \
-	-fipa-pta \
 	-D__USE_MINGW_ANSI_STDIO=0 \
-	-fno-plt
 
 
 #	-DLOCAL_LRINTF \
@@ -28,6 +25,9 @@ CFLAGS=-I. -Iopusfile -Ilibogg/include -Ilibopus/include \
 #	-foptimize-strlen \
 #	-Wstack-usage=4096 \
 #	-fno-dwarf2-cfi-asm \
+#	-fno-semantic-interposition \
+#	-fipa-pta \
+#	-fno-plt
 #   -fomit-frame-pointer \
 
 
@@ -37,12 +37,13 @@ CFLAGS=-I. -Iopusfile -Ilibogg/include -Ilibopus/include \
 
 LDFLAGS= -nostdlib -lgcc -lm -lkernel32 -lmsvcrt -luser32 -lgdi32 -lwsock32 -s
 LDFLAGS+= -Wl,-s,-dynamicbase \
-    -Wl,-nxcompat \
-    -Wl,--no-seh \
     -Wl,--relax \
     -Wl,--disable-runtime-pseudo-reloc \
     -Wl,--enable-auto-import \
     -Wl,--disable-stdcall-fixup
+
+#    -Wl,-nxcompat \
+#    -Wl,--no-seh \
 
 in_opus.dll: in_opus.o resample.o infobox.o http.o wspiapi.o resource.o
 	$(CC) -o in_opus.dll in_opus.o resample.o infobox.o http.o wspiapi.o resource.o\
